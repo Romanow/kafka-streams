@@ -30,7 +30,12 @@ subprojects {
         implementation "org.springframework.boot:spring-boot-starter"
         implementation "org.springframework.boot:spring-boot-starter-logging"
 
+        implementation "com.google.code.gson:gson"
+        compileOnly "org.projectlombok:lombok"
+        annotationProcessor "org.projectlombok:lombok"
         implementation "org.jetbrains:annotations:$jetbrainsAnnotationsVersion"
+
+        implementation "org.springframework.boot:spring-boot-starter-test"
     }
 
     test {
