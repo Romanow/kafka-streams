@@ -1,0 +1,47 @@
+plugins {
+    id "java"
+    id "idea"
+    id "org.springframework.boot" version "2.6.1"
+    id "io.spring.dependency-management" version "1.0.11.RELEASE"
+}
+
+ext {
+    jetbrainsAnnotationsVersion = "22.0.0"
+}
+
+subprojects {
+    apply plugin: "idea"
+    apply plugin: "java"
+    apply plugin: "org.springframework.boot"
+    apply plugin: "io.spring.dependency-management"
+
+    idea {
+        module {
+            downloadJavadoc = true
+            downloadSources = true
+        }
+    }
+
+    repositories {
+        mavenCentral()
+    }
+
+    dependencies {
+        implementation "org.springframework.boot:spring-boot-starter"
+        implementation "org.springframework.boot:spring-boot-starter-logging"
+
+        implementation "org.jetbrains:annotations:$jetbrainsAnnotationsVersion"
+    }
+
+    test {
+        useJUnitPlatform()
+    }
+
+    springBoot {
+        buildInfo()
+    }
+
+    bootJar {
+        archiveFileName = "${project.name}.jar"
+    }
+}

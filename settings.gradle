@@ -1,0 +1,4 @@
+rootProject.name = "kafka-streams"
+
+include "data-producer"
+include "stream-processor"
