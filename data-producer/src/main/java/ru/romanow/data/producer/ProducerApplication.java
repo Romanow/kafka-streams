@@ -20,13 +20,13 @@ import java.util.regex.Pattern;
 import static java.util.stream.Collectors.toMap;
 
 @SpringBootApplication
-public class ProcessorMain {
+public class ProducerApplication {
     private static final Pattern CSV_PATTERN = Pattern.compile("^(.*);(\\d+)$");
     private static final String BOOKS = "data/books.csv";
-    private static final String TOPIC = "topic";
+    private static final String TOPIC = "books-topic";
 
     public static void main(String[] args) {
-        SpringApplication.run(ProcessorMain.class, args);
+        SpringApplication.run(ProducerApplication.class, args);
     }
 
     @Bean

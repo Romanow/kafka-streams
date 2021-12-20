@@ -1,4 +1,10 @@
 dependencies {
     implementation "org.springframework.kafka:spring-kafka"
     implementation "org.apache.kafka:kafka-streams"
+    implementation "com.fasterxml.jackson.core:jackson-databind"
+
+    testImplementation "org.testcontainers:kafka:$testContainersVersion"
+    testImplementation "org.testcontainers:junit-jupiter:$testContainersVersion"
+    testImplementation "org.springframework.boot:spring-boot-starter-webflux"
+    testImplementation "io.projectreactor.netty:reactor-netty-http"
 }

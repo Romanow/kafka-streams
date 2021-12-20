@@ -1,5 +1,6 @@
 package ru.romanow.data.producer;
 
+import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
@@ -14,9 +15,15 @@ public class RestClient {
     public Flux<BookPart> makeRequest(@NotNull String name, @NotNull Integer id) {
         return webClient
                 .get()
-                .uri("/files/{id}/{id}-0.txt", id)
+                .uri("/files/{id}/{id}-0.txt", id, id)
                 .retrieve()
                 .bodyToFlux(String.class)
                 .map(text -> new BookPart(name, text));
+    }
+
+    @Data
+    public static class BookPart {
+        private final String name;
+        private final String text;
     }
 }
