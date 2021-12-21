@@ -2,6 +2,7 @@ package ru.romanow.github.event.streaming;
 
 import com.google.gson.Gson;
 import lombok.Data;
+import lombok.experimental.Accessors;
 import org.apache.kafka.clients.admin.NewTopic;
 import org.slf4j.Logger;
 import org.springframework.boot.CommandLineRunner;
@@ -15,6 +16,7 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
@@ -36,8 +38,7 @@ public class GithubEventStreamingApplication {
     @Bean
     public WebClient webClient(WebClient.Builder builder) {
         return builder
-                .baseUrl("https://api.github.com/")
-                .defaultHeaders(header -> header.setBasicAuth("Romanow", System.getProperty(GITHUB_TOKEN)))
+                .defaultHeaders(header -> header.setBasicAuth("Romanow", System.getenv(GITHUB_TOKEN)))
                 .build();
     }
 
@@ -48,7 +49,7 @@ public class GithubEventStreamingApplication {
             final AtomicReference<String> etag = new AtomicReference<>();
             while (true) {
                 webClient.get()
-                        .uri(uriBuilder -> uriBuilder.path("/events").queryParam("per_page", 30).build())
+                        .uri("https://api.github.com/events?per_page=30")
                         .ifNoneMatch(etag.get())
                         .accept(MediaType.APPLICATION_JSON)
                         .retrieve()
@@ -57,6 +58,12 @@ public class GithubEventStreamingApplication {
                         .doOnSuccess(resp -> etag.set(resp.getHeaders().getETag()))
                         .flatMapMany(resp -> Flux.fromIterable(resp.getBody()))
                         .filter(event -> event.getType().equalsIgnoreCase(PUSH_EVENT))
+                        .flatMap(event -> webClient.get()
+                                .uri(event.repo.url)
+                                .retrieve()
+                                .bodyToMono(Repository.class)
+                                .filter(repository -> repository.language != null)
+                                .map(event::setRepo))
                         .doOnNext(event -> logger.info("Github event: {}", event))
                         .doOnNext(event -> kafkaTemplate.send(GITHUB_CHANGE_EVENTS_TOPIC, gson.toJson(event)))
                         .subscribe();
@@ -76,6 +83,7 @@ public class GithubEventStreamingApplication {
     }
 
     @Data
+    @Accessors(chain = true)
     static class GithubEvent {
         private String id;
         private String type;
@@ -83,9 +91,11 @@ public class GithubEventStreamingApplication {
     }
 
     @Data
+    @Accessors(chain = true)
     static class Repository {
         private Long id;
         private String name;
         private String url;
+        private String language;
     }
 }

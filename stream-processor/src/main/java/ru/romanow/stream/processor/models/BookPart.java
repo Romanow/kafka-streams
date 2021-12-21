@@ -8,4 +8,10 @@ import lombok.experimental.Accessors;
 public class BookPart {
     private String name;
     private String text;
+
+    public static BookPart create(String name, String text) {
+        return new BookPart()
+                .setName(name)
+                .setText(text);
+    }
 }
