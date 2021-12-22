@@ -71,6 +71,16 @@ services:
       KSQL_KSQL_LOGGING_PROCESSING_STREAM_AUTO_CREATE: "true"
       KSQL_KSQL_LOGGING_PROCESSING_TOPIC_AUTO_CREATE: "true"
 
+  ksql-cli:
+    image: confluentinc/ksqldb-cli:0.21.0
+    container_name: ksql-cli
+    depends_on:
+      - kafka-1
+      - kafka-2
+      - ksql-server
+    entrypoint: /bin/sh
+    tty: true
+
   control-center:
     image: confluentinc/cp-enterprise-control-center:5.4.1
     hostname: control-center

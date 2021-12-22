@@ -1,72 +1,48 @@
 package ru.romanow.stream.processor;
 
 import org.apache.kafka.clients.admin.NewTopic;
-import org.apache.kafka.common.utils.Bytes;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.Topology;
-import org.apache.kafka.streams.kstream.*;
+import org.apache.kafka.streams.kstream.Consumed;
+import org.apache.kafka.streams.kstream.KStream;
+import org.apache.kafka.streams.kstream.Produced;
+import org.apache.kafka.streams.kstream.ValueTransformerWithKey;
+import org.apache.kafka.streams.processor.ProcessorContext;
 import org.apache.kafka.streams.state.KeyValueStore;
-import org.slf4j.Logger;
+import org.apache.kafka.streams.state.StoreBuilder;
+import org.apache.kafka.streams.state.Stores;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.kafka.config.TopicBuilder;
-import org.springframework.kafka.support.serializer.JsonSerde;
-import ru.romanow.stream.processor.models.ItemHolder;
-import ru.romanow.stream.processor.models.WordCounter;
 
-import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 import java.util.regex.MatchResult;
 import java.util.regex.Pattern;
 
-import static java.util.Arrays.stream;
-import static java.util.Comparator.comparing;
-import static java.util.Comparator.nullsLast;
 import static java.util.stream.Collectors.toList;
-import static org.apache.kafka.common.serialization.Serdes.Long;
 import static org.apache.kafka.common.serialization.Serdes.String;
-import static org.apache.kafka.streams.KeyValue.pair;
-import static org.slf4j.LoggerFactory.getLogger;
 
 @Configuration
 public class StreamProcessor {
-    private static final Logger logger = getLogger(ProcessorApplication.class);
-
     private static final Pattern WORDS_PATTERN = Pattern.compile("((\\b[^\\s]+\\b)((?<=\\.\\w).)?)");
-    public static final String INPUT_TOPIC = "books-topic";
-    public static final String OUTPUT_TOPIC = "word-count";
-    public static final String RESULT = "words-count";
+    public static final String INPUT_TOPIC = "input-topic";
+    public static final String OUTPUT_TOPIC = "distinct-words";
+    public static final String STORE_NAME = "store";
 
     @Bean
     public Topology createTopology(StreamsBuilder streamsBuilder) {
+        final StoreBuilder<KeyValueStore<String, String>> storeBuilder = Stores
+                .keyValueStoreBuilder(Stores.inMemoryKeyValueStore(STORE_NAME), String(), String());
+
         final KStream<String, String> messageStream = streamsBuilder
+                .addStateStore(storeBuilder)
                 .stream(INPUT_TOPIC, Consumed.with(String(), String()));
 
         messageStream
                 .flatMapValues((key, line) -> words(line))
-                .groupBy((key, word) -> word, Grouped.with(String(), String()))
-                .count()
-                .toStream()
-                .map((key, value) -> pair("key", new WordCounter(key, value)))
-                .groupByKey(Grouped.with(String(), new JsonSerde<>(WordCounter.class)))
-                .aggregate(ItemHolder::new,
-                        (key, value, holder) -> {
-                            holder.getWords()[3] = value;
-                            Arrays.sort(holder.getWords(), nullsLast(comparing(WordCounter::getCount).reversed()));
-                            holder.getWords()[3] = null;
-                            return holder;
-                        },
-                        Materialized.<String, ItemHolder, KeyValueStore<Bytes, byte[]>>as(RESULT)
-                                .withKeySerde(String())
-                                .withValueSerde(new JsonSerde<>(ItemHolder.class)))
-                .toStream()
-                .flatMap((key, value) -> stream(value.getWords())
-                        .filter(Objects::nonNull)
-                        .map(w -> pair(w.getWord(), w.getCount()))
-                        .collect(toList()))
-                .to(OUTPUT_TOPIC, Produced.with(String(), Long()));
-        ;
+                .transformValues(DistinctTransformer::new, STORE_NAME)
+                .filter(((key, value) -> value != null))
+                .to(OUTPUT_TOPIC, Produced.with(String(), String()));
 
         return streamsBuilder.build();
     }
@@ -86,5 +62,30 @@ public class StreamProcessor {
                 .results()
                 .map(MatchResult::group)
                 .collect(toList());
+    }
+
+    static class DistinctTransformer
+            implements ValueTransformerWithKey<String, String, String> {
+        private KeyValueStore<String, String> store;
+
+        @Override
+        public void init(ProcessorContext context) {
+            store = context.getStateStore(STORE_NAME);
+        }
+
+        @Override
+        public String transform(String readOnlyKey, String value) {
+            final String v = store.get(value);
+            if (v == null) {
+                store.put(value, value);
+                return value;
+            } else {
+                return null;
+            }
+        }
+
+        @Override
+        public void close() {
+        }
     }
 }

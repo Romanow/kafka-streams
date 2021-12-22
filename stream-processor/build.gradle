@@ -3,7 +3,9 @@ dependencies {
     implementation "org.apache.kafka:kafka-streams"
     implementation "com.fasterxml.jackson.core:jackson-databind"
 
+    testImplementation "org.springframework.kafka:spring-kafka-test"
     testImplementation "org.apache.kafka:kafka-streams-test-utils"
     testImplementation "org.testcontainers:kafka:$testContainersVersion"
     testImplementation "org.testcontainers:junit-jupiter:$testContainersVersion"
+    testImplementation "org.junit.jupiter:junit-jupiter-params"
 }

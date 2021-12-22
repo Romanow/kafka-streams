@@ -1,5 +1,4 @@
 rootProject.name = "kafka-streams"
 
 include "github-event-streaming"
-include "data-producer"
 include "stream-processor"
